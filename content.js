@@ -29,6 +29,7 @@
           font-size: 12px;
           backdrop-filter: none;
           box-shadow: none;
+          transition: width 200ms ease, padding 200ms ease, background 200ms ease, box-shadow 200ms ease;
         }
         #${SIDEBAR_ID}:hover {
           background: rgba(250, 250, 250, 0.92);
