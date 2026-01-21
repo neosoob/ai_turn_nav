@@ -1,30 +1,87 @@
 (() => {
   const SIDEBAR_ID = "ai-turn-nav";
   const LIST_ID = "ai-turn-nav-list";
+  const STYLE_ID = "ai-turn-nav-style";
 
   function ensureSidebar() {
     let bar = document.getElementById(SIDEBAR_ID);
     if (bar) return bar;
 
+    if (!document.getElementById(STYLE_ID)) {
+      const style = document.createElement("style");
+      style.id = STYLE_ID;
+      style.textContent = `
+        #${SIDEBAR_ID} {
+          position: fixed;
+          right: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 240px;
+          max-height: 70vh;
+          overflow: auto;
+          z-index: 999999;
+          background: rgba(250, 250, 250, 0.92);
+          color: #1f2328;
+          border: 1px solid rgba(0, 0, 0, 0.08);
+          border-radius: 12px;
+          padding: 8px;
+          font-size: 12px;
+          backdrop-filter: blur(8px);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+        }
+        #${SIDEBAR_ID} .ai-nav-title {
+          font-weight: 600;
+          padding: 6px 8px;
+          color: #111;
+        }
+        #${SIDEBAR_ID} .ai-nav-item {
+          padding: 6px 8px;
+          border-radius: 8px;
+          cursor: pointer;
+          line-height: 1.3;
+          opacity: 0.9;
+          margin: 2px 0;
+          transition: background 140ms ease, opacity 140ms ease;
+        }
+        #${SIDEBAR_ID} .ai-nav-item:hover {
+          background: rgba(0, 0, 0, 0.06);
+        }
+        #${SIDEBAR_ID} .ai-nav-text {
+          display: block;
+          max-height: 80px;
+          overflow: hidden;
+          transition: opacity 160ms ease, max-height 200ms ease;
+        }
+        #${SIDEBAR_ID} .ai-nav-bar {
+          display: block;
+          height: 6px;
+          border-radius: 999px;
+          background: #c7cbd1;
+          transition: opacity 160ms ease, height 200ms ease;
+        }
+        #${SIDEBAR_ID}:not(:hover) .ai-nav-text {
+          opacity: 0;
+          max-height: 0;
+        }
+        #${SIDEBAR_ID}:not(:hover) .ai-nav-bar {
+          opacity: 1;
+        }
+        #${SIDEBAR_ID}:hover .ai-nav-text {
+          opacity: 1;
+          max-height: 80px;
+        }
+        #${SIDEBAR_ID}:hover .ai-nav-bar {
+          opacity: 0;
+          height: 0;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
     bar = document.createElement("div");
     bar.id = SIDEBAR_ID;
-    bar.style.cssText = `
-      position: fixed;
-      right: 12px;
-      top: 120px;
-      width: 240px;
-      max-height: calc(100vh - 160px);
-      overflow: auto;
-      z-index: 999999;
-      background: rgba(20,20,20,0.85);
-      color: #fff;
-      border-radius: 12px;
-      padding: 8px;
-      font-size: 12px;
-      backdrop-filter: blur(8px);
-    `;
     bar.innerHTML = `
-      <div style="font-weight:600;padding:6px 8px;">对话导航</div>
+      <div class="ai-nav-title">????????????</div>
       <div id="${LIST_ID}"></div>
     `;
     document.body.appendChild(bar);
@@ -70,17 +127,17 @@
       userArticles.push(articles[i]);
 
       const item = document.createElement("div");
-      item.textContent = title;
-      item.style.cssText = `
-        padding: 6px 8px;
-        border-radius: 8px;
-        cursor: pointer;
-        line-height: 1.3;
-        opacity: 0.9;
-        margin: 2px 0;
-      `;
-      item.onmouseenter = () => (item.style.background = "rgba(255,255,255,0.12)");
-      item.onmouseleave = () => (item.style.background = "transparent");
+      item.className = "ai-nav-item";
+
+      const text = document.createElement("span");
+      text.className = "ai-nav-text";
+      text.textContent = title;
+
+      const barEl = document.createElement("span");
+      barEl.className = "ai-nav-bar";
+
+      item.appendChild(text);
+      item.appendChild(barEl);
 
       item.addEventListener("click", () => {
         userArticles.forEach(a => a.removeAttribute("data-ai-nav-active"));
@@ -114,7 +171,7 @@
     const applyActive = (idx) => {
       if (idx === -1) return;
       Array.from(listEl.children).forEach((c, i) => {
-        c.style.background = (i === idx) ? "rgba(255,255,255,0.22)" : "transparent";
+        c.style.background = (i === idx) ? "rgba(0, 0, 0, 0.08)" : "transparent";
         c.style.opacity = (i === idx) ? "1" : "0.9";
       });
     };
