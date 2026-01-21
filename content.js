@@ -56,13 +56,12 @@
           background: transparent;
         }
         #${SIDEBAR_ID} .ai-nav-text {
-          display: -webkit-box;
-          -webkit-box-orient: vertical;
-          -webkit-line-clamp: 2;
-          max-height: 40px;
+          display: block;
+          max-height: 20px;
           overflow: hidden;
           color: inherit;
-          white-space: normal;
+          white-space: nowrap;
+          text-overflow: ellipsis;
           max-width: 100%;
           flex: 1;
         }
@@ -98,7 +97,7 @@
         }
         #${SIDEBAR_ID}:hover .ai-nav-text {
           opacity: 1;
-          max-height: 40px;
+          max-height: 20px;
           max-width: 100%;
         }
         #${SIDEBAR_ID}:hover .ai-nav-bar {
