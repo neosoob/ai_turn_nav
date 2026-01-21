@@ -15,7 +15,8 @@
           position: fixed;
           right: 12px;
           top: 50%;
-          transform: translateY(-50%);
+          transform: translate3d(0, -50%, 0);
+          transform-origin: right center;
           width: 320px;
           max-width: 320px;
           max-height: 70vh;
@@ -29,6 +30,7 @@
           font-size: 12px;
           backdrop-filter: none;
           box-shadow: none;
+          transition: transform 260ms ease, background 220ms ease, border 220ms ease, box-shadow 260ms ease, padding 220ms ease, backdrop-filter 220ms ease;
         }
         #${SIDEBAR_ID}:hover {
           background: rgba(250, 250, 250, 0.92);
@@ -39,6 +41,7 @@
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
           width: fit-content;
           max-width: 320px;
+          transform: translate3d(0, -50%, 0);
         }
         #${SIDEBAR_ID} .ai-nav-item {
           padding: 6px 8px;
@@ -50,6 +53,7 @@
           display: flex;
           align-items: center;
           gap: 8px;
+          transition: opacity 180ms ease;
         }
         #${SIDEBAR_ID}:hover .ai-nav-item {
           gap: 0;
@@ -91,9 +95,14 @@
         #${SIDEBAR_ID}:not(:hover) {
           width: 40px;
           padding: 0;
+          transform: translate3d(0, -50%, 0);
         }
         #${SIDEBAR_ID}:not(:hover) .ai-nav-item {
           padding: 6px 4px;
+          opacity: 0.65;
+        }
+        #${SIDEBAR_ID}:not(:hover) .ai-nav-item[data-active="1"] {
+          opacity: 1;
         }
         #${SIDEBAR_ID}:not(:hover) .ai-nav-bar {
           opacity: 1;
