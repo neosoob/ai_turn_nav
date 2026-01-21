@@ -17,6 +17,7 @@
           top: 50%;
           transform: translateY(-50%);
           width: 320px;
+          max-width: 320px;
           max-height: 70vh;
           overflow: auto;
           z-index: 999999;
@@ -36,6 +37,8 @@
           padding: 8px;
           backdrop-filter: blur(8px);
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+          width: fit-content;
+          max-width: 320px;
         }
         #${SIDEBAR_ID} .ai-nav-item {
           padding: 6px 8px;
