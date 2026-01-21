@@ -29,7 +29,6 @@
           font-size: 12px;
           backdrop-filter: none;
           box-shadow: none;
-          transition: background 500ms ease, box-shadow 500ms ease, border-radius 500ms ease;
         }
         #${SIDEBAR_ID}:hover {
           background: rgba(250, 250, 250, 0.92);
@@ -71,7 +70,6 @@
           text-overflow: ellipsis;
           max-width: 100%;
           flex: 1;
-          transition: opacity 500ms ease;
         }
         #${SIDEBAR_ID} .ai-nav-item[data-active="1"] .ai-nav-text {
           color: #1f6feb;
