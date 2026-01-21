@@ -17,7 +17,6 @@
           top: 50%;
           transform: translateY(-50%);
           width: 240px;
-          transition: width 180ms ease, padding 180ms ease;
           max-height: 70vh;
           overflow: auto;
           z-index: 999999;
@@ -37,7 +36,6 @@
           line-height: 1.3;
           opacity: 0.9;
           margin: 2px 0;
-          transition: background 140ms ease, opacity 140ms ease;
         }
         #${SIDEBAR_ID} .ai-nav-item[data-active="1"] {
           background: transparent;
@@ -51,7 +49,6 @@
           max-height: 80px;
           overflow: hidden;
           color: inherit;
-          transition: opacity 160ms ease, max-height 200ms ease;
         }
         #${SIDEBAR_ID} .ai-nav-item[data-active="1"] .ai-nav-text {
           color: #1f6feb;
@@ -63,7 +60,6 @@
           width: 26px;
           border-radius: 999px;
           background: #c7cbd1;
-          transition: opacity 160ms ease, height 200ms ease;
         }
         #${SIDEBAR_ID}:not(:hover) {
           width: 40px;
@@ -121,7 +117,7 @@
     if (!text) text = "(empty)";
     if (text.length > 50) text = text.slice(0, 50) + "...";
 
-    return `${idx + 1}. 🧑 ${text}`;
+    return `${idx + 1}. ${text}`;
   }
 
   function render() {
@@ -189,17 +185,10 @@
   }
 
   function setupActiveHighlight(userArticles, listEl) {
-    // 断开旧的 observer
-    if (window.__aiNavIO) {
-      window.__aiNavIO.disconnect();
-      window.__aiNavIO = null;
-    }
-
-    const inView = new Map();
-    let activeIndex = Number.isInteger(window.__aiNavActiveIndex) ? window.__aiNavActiveIndex : -1;
+    window.__aiNavItems = userArticles;
+    window.__aiNavListEl = listEl;
 
     const applyActive = (idx) => {
-      if (idx === -1) return;
       Array.from(listEl.children).forEach((c, i) => {
         if (i === idx) {
           c.setAttribute("data-active", "1");
@@ -209,30 +198,45 @@
       });
     };
 
-    applyActive(activeIndex);
-
-    const io = new IntersectionObserver((entries) => {
-      if (window.__aiNavFreezeUntil && Date.now() < window.__aiNavFreezeUntil) return;
-
-      entries.forEach(entry => {
-        inView.set(entry.target, entry.isIntersecting);
-      });
+    const computeActive = () => {
+      const items = window.__aiNavItems || [];
+      if (!items.length) return -1;
 
       let nextIndex = -1;
-      for (let i = 0; i < userArticles.length; i++) {
-        if (inView.get(userArticles[i])) {
+      let minBelow = Number.POSITIVE_INFINITY;
+      let maxAbove = Number.NEGATIVE_INFINITY;
+      let aboveIndex = -1;
+
+      for (let i = 0; i < items.length; i++) {
+        const rect = items[i].getBoundingClientRect();
+        if (rect.top >= 0 && rect.top < minBelow) {
+          minBelow = rect.top;
           nextIndex = i;
-          break;
+        } else if (rect.top < 0 && rect.top > maxAbove) {
+          maxAbove = rect.top;
+          aboveIndex = i;
         }
       }
-      if (nextIndex === activeIndex || nextIndex === -1) return;
-      activeIndex = nextIndex;
-      window.__aiNavActiveIndex = activeIndex;
-      applyActive(activeIndex);
-    }, { threshold: 0.35, rootMargin: "0px 0px -40% 0px" });
 
-    userArticles.forEach(a => io.observe(a));
-    window.__aiNavIO = io;
+      if (nextIndex === -1) nextIndex = aboveIndex;
+      return nextIndex;
+    };
+
+    if (!window.__aiNavScrollHandler) {
+      window.__aiNavScrollHandler = () => {
+        if (window.__aiNavFreezeUntil && Date.now() < window.__aiNavFreezeUntil) return;
+        const idx = computeActive();
+        if (idx === -1 || idx === window.__aiNavActiveIndex) return;
+        window.__aiNavActiveIndex = idx;
+        applyActive(idx);
+      };
+      window.addEventListener("scroll", window.__aiNavScrollHandler, { passive: true });
+      window.addEventListener("resize", window.__aiNavScrollHandler);
+    }
+
+    const currentIndex = Number.isInteger(window.__aiNavActiveIndex) ? window.__aiNavActiveIndex : -1;
+    if (currentIndex !== -1) applyActive(currentIndex);
+    window.__aiNavScrollHandler();
   }
 
   function observe() {
