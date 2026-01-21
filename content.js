@@ -29,6 +29,14 @@
           backdrop-filter: none;
           box-shadow: none;
         }
+        #${SIDEBAR_ID}:hover {
+          background: rgba(250, 250, 250, 0.92);
+          border: 1px solid rgba(0, 0, 0, 0.08);
+          border-radius: 12px;
+          padding: 8px;
+          backdrop-filter: blur(8px);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+        }
         #${SIDEBAR_ID} .ai-nav-item {
           padding: 6px 8px;
           border-radius: 8px;
@@ -174,11 +182,6 @@
         article.setAttribute("data-ai-nav-active", "1");
 
         // Freeze auto highlight briefly to avoid flicker after manual selection.
-        const nextIndex = userArticles.indexOf(article);
-        window.__aiNavActiveIndex = nextIndex;
-        window.__aiNavFreezeUntil = Date.now() + 300;
-        if (window.__aiNavApplyActive) window.__aiNavApplyActive(nextIndex);
-
         article.scrollIntoView({ behavior: "smooth", block: "start" });
         clearTimeout(window.__aiNavPostScrollT);
         window.__aiNavPostScrollT = setTimeout(() => {
