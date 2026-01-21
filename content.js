@@ -16,7 +16,7 @@
           right: 12px;
           top: 50%;
           transform: translateY(-50%);
-          width: 240px;
+          width: 320px;
           max-height: 70vh;
           overflow: auto;
           z-index: 999999;
@@ -56,13 +56,15 @@
           background: transparent;
         }
         #${SIDEBAR_ID} .ai-nav-text {
-          display: block;
-          max-height: 80px;
+          display: -webkit-box;
+          -webkit-box-orient: vertical;
+          -webkit-line-clamp: 2;
+          max-height: 40px;
           overflow: hidden;
           color: inherit;
-          white-space: nowrap;
-          text-overflow: ellipsis;
-          max-width: 220px;
+          white-space: normal;
+          max-width: 100%;
+          flex: 1;
         }
         #${SIDEBAR_ID} .ai-nav-item[data-active="1"] .ai-nav-text {
           color: #1f6feb;
@@ -96,12 +98,11 @@
         }
         #${SIDEBAR_ID}:hover .ai-nav-text {
           opacity: 1;
-          max-height: 20px;
-          max-width: 220px;
+          max-height: 40px;
+          max-width: 100%;
         }
         #${SIDEBAR_ID}:hover .ai-nav-bar {
-          opacity: 0;
-          height: 0;
+          display: none;
         }
       `;
       document.head.appendChild(style);
@@ -134,7 +135,7 @@
 
     let text = (roleNode?.innerText || "").replace(/\s+/g, " ").trim();
     if (!text) text = "(empty)";
-    if (text.length > 50) text = text.slice(0, 50) + "...";
+    if (text.length > 120) text = text.slice(0, 120) + "...";
 
     return `${idx + 1}. ${text}`;
   }
