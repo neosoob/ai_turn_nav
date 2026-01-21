@@ -17,6 +17,7 @@
           top: 50%;
           transform: translateY(-50%);
           width: 240px;
+          transition: width 180ms ease, padding 180ms ease;
           max-height: 70vh;
           overflow: auto;
           z-index: 999999;
@@ -29,11 +30,6 @@
           backdrop-filter: blur(8px);
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
         }
-        #${SIDEBAR_ID} .ai-nav-title {
-          font-weight: 600;
-          padding: 6px 8px;
-          color: #111;
-        }
         #${SIDEBAR_ID} .ai-nav-item {
           padding: 6px 8px;
           border-radius: 8px;
@@ -43,7 +39,11 @@
           margin: 2px 0;
           transition: background 140ms ease, opacity 140ms ease;
         }
-        #${SIDEBAR_ID} .ai-nav-item:hover {
+        #${SIDEBAR_ID} .ai-nav-item[data-active="1"] {
+          background: rgba(0, 0, 0, 0.08);
+          opacity: 1;
+        }
+        #${SIDEBAR_ID} .ai-nav-item:not([data-active="1"]):hover {
           background: rgba(0, 0, 0, 0.06);
         }
         #${SIDEBAR_ID} .ai-nav-text {
@@ -55,16 +55,25 @@
         #${SIDEBAR_ID} .ai-nav-bar {
           display: block;
           height: 6px;
+          width: 26px;
           border-radius: 999px;
           background: #c7cbd1;
           transition: opacity 160ms ease, height 200ms ease;
         }
-        #${SIDEBAR_ID}:not(:hover) .ai-nav-text {
-          opacity: 0;
-          max-height: 0;
+        #${SIDEBAR_ID}:not(:hover) {
+          width: 40px;
+          padding: 8px 6px;
+        }
+        #${SIDEBAR_ID}:not(:hover) .ai-nav-item {
+          padding: 6px;
         }
         #${SIDEBAR_ID}:not(:hover) .ai-nav-bar {
           opacity: 1;
+          margin: 2px auto;
+        }
+        #${SIDEBAR_ID}:not(:hover) .ai-nav-text {
+          opacity: 0;
+          max-height: 0;
         }
         #${SIDEBAR_ID}:hover .ai-nav-text {
           opacity: 1;
@@ -81,7 +90,6 @@
     bar = document.createElement("div");
     bar.id = SIDEBAR_ID;
     bar.innerHTML = `
-      <div class="ai-nav-title">????????????</div>
       <div id="${LIST_ID}"></div>
     `;
     document.body.appendChild(bar);
@@ -105,8 +113,8 @@
     if (role !== "user") return null;
 
     let text = (roleNode?.innerText || "").replace(/\s+/g, " ").trim();
-    if (!text) text = "(空)";
-    if (text.length > 50) text = text.slice(0, 50) + "…";
+    if (!text) text = "(empty)";
+    if (text.length > 50) text = text.slice(0, 50) + "...";
 
     return `${idx + 1}. 🧑 ${text}`;
   }
@@ -116,18 +124,36 @@
     const list = document.getElementById(LIST_ID);
     if (!list) return;
 
-    const articles = getTurnArticles();
-    list.innerHTML = "";
+    const activeIndex = Number.isInteger(window.__aiNavActiveIndex) ? window.__aiNavActiveIndex : -1;
 
+    const articles = getTurnArticles();
+    const titles = [];
     const userArticles = [];
+
     for (let i = 0; i < articles.length; i++) {
       const title = buildTitle(articles[i], userArticles.length);
       if (!title) continue;
-
+      titles.push(title);
       userArticles.push(articles[i]);
+    }
+
+    const existingItems = Array.from(list.children);
+    const shouldRebuild = existingItems.length !== titles.length || existingItems.some((el, idx) => el.dataset.title !== titles[idx]);
+    if (!shouldRebuild) {
+      setupActiveHighlight(userArticles, list);
+      return;
+    }
+
+    list.innerHTML = "";
+
+    for (let i = 0; i < titles.length; i++) {
+      const title = titles[i];
+      const article = userArticles[i];
 
       const item = document.createElement("div");
       item.className = "ai-nav-item";
+      item.dataset.title = title;
+      if (i === activeIndex) item.setAttribute("data-active", "1");
 
       const text = document.createElement("span");
       text.className = "ai-nav-text";
@@ -141,19 +167,19 @@
 
       item.addEventListener("click", () => {
         userArticles.forEach(a => a.removeAttribute("data-ai-nav-active"));
-        articles[i].setAttribute("data-ai-nav-active", "1");
+        article.setAttribute("data-ai-nav-active", "1");
 
         // Freeze auto highlight briefly to avoid flicker after manual selection.
-        window.__aiNavActiveIndex = userArticles.indexOf(articles[i]);
+        window.__aiNavActiveIndex = userArticles.indexOf(article);
         window.__aiNavFreezeUntil = Date.now() + 1200;
 
-        articles[i].scrollIntoView({ behavior: "smooth", block: "start" });
+        article.scrollIntoView({ behavior: "smooth", block: "start" });
       });
 
       list.appendChild(item);
     }
 
-    // 高亮当前可见回合（可选增强）
+    // ??????????????????????????????????????????
     setupActiveHighlight(userArticles, list);
   }
 
@@ -164,15 +190,17 @@
       window.__aiNavIO = null;
     }
 
-    const children = Array.from(listEl.children);
     const inView = new Map();
     let activeIndex = Number.isInteger(window.__aiNavActiveIndex) ? window.__aiNavActiveIndex : -1;
 
     const applyActive = (idx) => {
       if (idx === -1) return;
       Array.from(listEl.children).forEach((c, i) => {
-        c.style.background = (i === idx) ? "rgba(0, 0, 0, 0.08)" : "transparent";
-        c.style.opacity = (i === idx) ? "1" : "0.9";
+        if (i === idx) {
+          c.setAttribute("data-active", "1");
+        } else {
+          c.removeAttribute("data-active");
+        }
       });
     };
 
