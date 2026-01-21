@@ -137,7 +137,7 @@
     if (role !== "user") return null;
 
     let text = (roleNode?.innerText || "").replace(/\s+/g, " ").trim();
-    if (!text) text = "(empty)";
+    if (!text) text = "发送图片";
     if (text.length > 120) text = text.slice(0, 120) + "...";
 
     return `${idx + 1}. ${text}`;
@@ -204,7 +204,6 @@
       list.appendChild(item);
     }
 
-    // ??????????????????????????????????????????
     setupActiveHighlight(userArticles, list);
   }
 
