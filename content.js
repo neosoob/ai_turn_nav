@@ -29,6 +29,7 @@
           font-size: 12px;
           backdrop-filter: none;
           box-shadow: none;
+          transition: background 500ms ease, box-shadow 500ms ease, border-radius 500ms ease;
         }
         #${SIDEBAR_ID}:hover {
           background: rgba(250, 250, 250, 0.92);
@@ -51,6 +52,9 @@
           align-items: center;
           gap: 8px;
         }
+        #${SIDEBAR_ID}:hover .ai-nav-item {
+          gap: 0;
+        }
         #${SIDEBAR_ID} .ai-nav-item[data-active="1"] {
           background: transparent;
           opacity: 1;
@@ -67,6 +71,7 @@
           text-overflow: ellipsis;
           max-width: 100%;
           flex: 1;
+          transition: opacity 500ms ease;
         }
         #${SIDEBAR_ID} .ai-nav-item[data-active="1"] .ai-nav-text {
           color: #1f6feb;
@@ -95,13 +100,9 @@
         }
         #${SIDEBAR_ID}:not(:hover) .ai-nav-text {
           opacity: 0;
-          max-height: 0;
-          max-width: 0;
         }
         #${SIDEBAR_ID}:hover .ai-nav-text {
           opacity: 1;
-          max-height: 20px;
-          max-width: 100%;
         }
         #${SIDEBAR_ID}:hover .ai-nav-bar {
           display: none;
