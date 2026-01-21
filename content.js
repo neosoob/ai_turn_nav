@@ -86,6 +86,10 @@
         userArticles.forEach(a => a.removeAttribute("data-ai-nav-active"));
         articles[i].setAttribute("data-ai-nav-active", "1");
 
+        // Freeze auto highlight briefly to avoid flicker after manual selection.
+        window.__aiNavActiveIndex = userArticles.indexOf(articles[i]);
+        window.__aiNavFreezeUntil = Date.now() + 1200;
+
         articles[i].scrollIntoView({ behavior: "smooth", block: "start" });
       });
 
@@ -104,18 +108,38 @@
     }
 
     const children = Array.from(listEl.children);
-    const io = new IntersectionObserver((entries) => {
-      const visible = entries
-        .filter(e => e.isIntersecting)
-        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-      if (!visible) return;
+    const inView = new Map();
+    let activeIndex = Number.isInteger(window.__aiNavActiveIndex) ? window.__aiNavActiveIndex : -1;
 
-      const idx = userArticles.indexOf(visible.target);
-      children.forEach((c, i) => {
+    const applyActive = (idx) => {
+      if (idx === -1) return;
+      Array.from(listEl.children).forEach((c, i) => {
         c.style.background = (i === idx) ? "rgba(255,255,255,0.22)" : "transparent";
         c.style.opacity = (i === idx) ? "1" : "0.9";
       });
-    }, { threshold: 0.2 });
+    };
+
+    applyActive(activeIndex);
+
+    const io = new IntersectionObserver((entries) => {
+      if (window.__aiNavFreezeUntil && Date.now() < window.__aiNavFreezeUntil) return;
+
+      entries.forEach(entry => {
+        inView.set(entry.target, entry.isIntersecting);
+      });
+
+      let nextIndex = -1;
+      for (let i = 0; i < userArticles.length; i++) {
+        if (inView.get(userArticles[i])) {
+          nextIndex = i;
+          break;
+        }
+      }
+      if (nextIndex === activeIndex || nextIndex === -1) return;
+      activeIndex = nextIndex;
+      window.__aiNavActiveIndex = activeIndex;
+      applyActive(activeIndex);
+    }, { threshold: 0.35, rootMargin: "0px 0px -40% 0px" });
 
     userArticles.forEach(a => io.observe(a));
     window.__aiNavIO = io;
