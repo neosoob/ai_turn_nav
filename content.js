@@ -44,6 +44,9 @@
           line-height: 1.3;
           opacity: 0.9;
           margin: 2px 0;
+          display: flex;
+          align-items: center;
+          gap: 8px;
         }
         #${SIDEBAR_ID} .ai-nav-item[data-active="1"] {
           background: transparent;
@@ -57,6 +60,9 @@
           max-height: 80px;
           overflow: hidden;
           color: inherit;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          max-width: 220px;
         }
         #${SIDEBAR_ID} .ai-nav-item[data-active="1"] .ai-nav-text {
           color: #1f6feb;
@@ -86,10 +92,12 @@
         #${SIDEBAR_ID}:not(:hover) .ai-nav-text {
           opacity: 0;
           max-height: 0;
+          max-width: 0;
         }
         #${SIDEBAR_ID}:hover .ai-nav-text {
           opacity: 1;
-          max-height: 80px;
+          max-height: 20px;
+          max-width: 220px;
         }
         #${SIDEBAR_ID}:hover .ai-nav-bar {
           opacity: 0;
