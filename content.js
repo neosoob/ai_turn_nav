@@ -70,6 +70,9 @@
           text-overflow: ellipsis;
           max-width: 100%;
           flex: 1;
+          transform: translate3d(6px, 0, 0);
+          transition: opacity 180ms ease, transform 220ms ease;
+          will-change: opacity, transform;
         }
         #${SIDEBAR_ID} .ai-nav-item[data-active="1"] .ai-nav-text {
           color: #1f6feb;
@@ -98,9 +101,11 @@
         }
         #${SIDEBAR_ID}:not(:hover) .ai-nav-text {
           opacity: 0;
+          transform: translate3d(6px, 0, 0);
         }
         #${SIDEBAR_ID}:hover .ai-nav-text {
           opacity: 1;
+          transform: translate3d(0, 0, 0);
         }
         #${SIDEBAR_ID}:hover .ai-nav-bar {
           display: none;
