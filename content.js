@@ -54,6 +54,9 @@
           color: #1f6feb;
           font-weight: 600;
         }
+        #${SIDEBAR_ID} .ai-nav-item[data-active="1"] .ai-nav-bar {
+          background: #1f6feb;
+        }
         #${SIDEBAR_ID} .ai-nav-bar {
           display: block;
           height: 6px;
@@ -171,10 +174,16 @@
         article.setAttribute("data-ai-nav-active", "1");
 
         // Freeze auto highlight briefly to avoid flicker after manual selection.
-        window.__aiNavActiveIndex = userArticles.indexOf(article);
-        window.__aiNavFreezeUntil = Date.now() + 1200;
+        const nextIndex = userArticles.indexOf(article);
+        window.__aiNavActiveIndex = nextIndex;
+        window.__aiNavFreezeUntil = Date.now() + 300;
+        if (window.__aiNavApplyActive) window.__aiNavApplyActive(nextIndex);
 
         article.scrollIntoView({ behavior: "smooth", block: "start" });
+        clearTimeout(window.__aiNavPostScrollT);
+        window.__aiNavPostScrollT = setTimeout(() => {
+          if (window.__aiNavScrollHandler) window.__aiNavScrollHandler();
+        }, 360);
       });
 
       list.appendChild(item);
@@ -197,41 +206,48 @@
         }
       });
     };
+    window.__aiNavApplyActive = applyActive;
 
     const computeActive = () => {
       const items = window.__aiNavItems || [];
       if (!items.length) return -1;
 
-      let nextIndex = -1;
-      let minBelow = Number.POSITIVE_INFINITY;
-      let maxAbove = Number.NEGATIVE_INFINITY;
-      let aboveIndex = -1;
+      const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+      const targetY = vh * 0.3;
+      let bestIndex = -1;
+      let bestDist = Number.POSITIVE_INFINITY;
 
       for (let i = 0; i < items.length; i++) {
         const rect = items[i].getBoundingClientRect();
-        if (rect.top >= 0 && rect.top < minBelow) {
-          minBelow = rect.top;
-          nextIndex = i;
-        } else if (rect.top < 0 && rect.top > maxAbove) {
-          maxAbove = rect.top;
-          aboveIndex = i;
+        let dist = 0;
+        if (targetY < rect.top) {
+          dist = rect.top - targetY;
+        } else if (targetY > rect.bottom) {
+          dist = targetY - rect.bottom;
+        }
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIndex = i;
         }
       }
 
-      if (nextIndex === -1) nextIndex = aboveIndex;
-      return nextIndex;
+      return bestIndex;
     };
 
     if (!window.__aiNavScrollHandler) {
       window.__aiNavScrollHandler = () => {
-        if (window.__aiNavFreezeUntil && Date.now() < window.__aiNavFreezeUntil) return;
-        const idx = computeActive();
-        if (idx === -1 || idx === window.__aiNavActiveIndex) return;
-        window.__aiNavActiveIndex = idx;
-        applyActive(idx);
+        if (window.__aiNavRAF) return;
+        window.__aiNavRAF = requestAnimationFrame(() => {
+          window.__aiNavRAF = null;
+          const idx = computeActive();
+          if (idx === -1 || idx === window.__aiNavActiveIndex) return;
+          window.__aiNavActiveIndex = idx;
+          applyActive(idx);
+        });
       };
       window.addEventListener("scroll", window.__aiNavScrollHandler, { passive: true });
       window.addEventListener("resize", window.__aiNavScrollHandler);
+      document.addEventListener("scroll", window.__aiNavScrollHandler, { passive: true, capture: true });
     }
 
     const currentIndex = Number.isInteger(window.__aiNavActiveIndex) ? window.__aiNavActiveIndex : -1;
