@@ -2,93 +2,6 @@
   const SIDEBAR_ID = "ai-turn-nav";
   const LIST_ID = "ai-turn-nav-list";
   const STYLE_ID = "ai-turn-nav-style";
-  const SCROLL_LOCK_IDLE_MS = 140;
-  const SCROLL_LOCK_MAX_MS = 1200;
-  const SCROLL_SNAP_THRESHOLD = 6;
-
-  function getScrollParent(el) {
-    let node = el?.parentElement;
-    while (node) {
-      if (node === document.body || node === document.documentElement) break;
-      const style = getComputedStyle(node);
-      const overflowY = style.overflowY;
-      if ((overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") && node.scrollHeight > node.clientHeight + 1) {
-        return node;
-      }
-      node = node.parentElement;
-    }
-    return document.scrollingElement || document.documentElement;
-  }
-
-  function getScrollTopValue(scroller) {
-    if (!scroller) return 0;
-    if (scroller === document.body || scroller === document.documentElement || scroller === document.scrollingElement) {
-      return window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-    }
-    return scroller.scrollTop;
-  }
-
-  function getScrollTarget(el) {
-    const scroller = getScrollParent(el);
-    const elRect = el.getBoundingClientRect();
-    if (!scroller || scroller === document.body || scroller === document.documentElement || scroller === document.scrollingElement) {
-      const top = getScrollTopValue(scroller) + elRect.top;
-      return { scroller, top };
-    }
-    const scrollerRect = scroller.getBoundingClientRect();
-    const top = scroller.scrollTop + (elRect.top - scrollerRect.top);
-    return { scroller, top };
-  }
-
-  function scrollToContainer(scroller, top, behavior) {
-    if (!scroller) return;
-    const opts = { top, behavior };
-    if (scroller === document.body || scroller === document.documentElement || scroller === document.scrollingElement) {
-      window.scrollTo(opts);
-      return;
-    }
-    if (typeof scroller.scrollTo === "function") {
-      scroller.scrollTo(opts);
-    } else {
-      scroller.scrollTop = top;
-    }
-  }
-
-  function snapToTarget() {
-    const snap = window.__aiNavSnapTarget;
-    if (!snap || !snap.el || !snap.el.isConnected) {
-      window.__aiNavSnapTarget = null;
-      return;
-    }
-    const target = getScrollTarget(snap.el);
-    const currentTop = getScrollTopValue(target.scroller);
-    if (Math.abs(currentTop - target.top) > SCROLL_SNAP_THRESHOLD) {
-      scrollToContainer(target.scroller, target.top, "auto");
-    }
-    window.__aiNavSnapTarget = null;
-  }
-
-  function releaseLockedIndex() {
-    if (!Number.isInteger(window.__aiNavLockedIndex)) return;
-    snapToTarget();
-    window.__aiNavLockedIndex = null;
-    window.__aiNavLockExpiresAt = 0;
-    if (window.__aiNavScrollHandler) window.__aiNavScrollHandler();
-  }
-
-  function resetLockIdleTimer() {
-    if (!Number.isInteger(window.__aiNavLockedIndex)) return;
-    clearTimeout(window.__aiNavLockIdleTimer);
-    window.__aiNavLockIdleTimer = setTimeout(releaseLockedIndex, SCROLL_LOCK_IDLE_MS);
-  }
-
-  function lockActiveIndex(idx) {
-    window.__aiNavLockedIndex = idx;
-    window.__aiNavLockExpiresAt = Date.now() + SCROLL_LOCK_MAX_MS;
-    clearTimeout(window.__aiNavLockMaxTimer);
-    window.__aiNavLockMaxTimer = setTimeout(releaseLockedIndex, SCROLL_LOCK_MAX_MS + 16);
-    resetLockIdleTimer();
-  }
 
   function ensureSidebar() {
     let bar = document.getElementById(SIDEBAR_ID);
@@ -102,8 +15,7 @@
           position: fixed;
           right: 12px;
           top: 50%;
-          transform: translate3d(0, -50%, 0);
-          transform-origin: right center;
+          transform: translateY(-50%);
           width: 320px;
           max-width: 320px;
           max-height: 70vh;
@@ -117,7 +29,6 @@
           font-size: 12px;
           backdrop-filter: none;
           box-shadow: none;
-          transition: transform 260ms ease, background 220ms ease, border 220ms ease, box-shadow 260ms ease, padding 220ms ease, backdrop-filter 220ms ease;
         }
         #${SIDEBAR_ID}:hover {
           background: rgba(250, 250, 250, 0.92);
@@ -128,7 +39,6 @@
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
           width: fit-content;
           max-width: 320px;
-          transform: translate3d(0, -50%, 0);
         }
         #${SIDEBAR_ID} .ai-nav-item {
           padding: 6px 8px;
@@ -140,10 +50,6 @@
           display: flex;
           align-items: center;
           gap: 8px;
-          transition: opacity 180ms ease;
-        }
-        #${SIDEBAR_ID}:hover .ai-nav-item {
-          gap: 0;
         }
         #${SIDEBAR_ID} .ai-nav-item[data-active="1"] {
           background: transparent;
@@ -161,9 +67,6 @@
           text-overflow: ellipsis;
           max-width: 100%;
           flex: 1;
-          transform: translate3d(6px, 0, 0);
-          transition: opacity 180ms ease, transform 220ms ease;
-          will-change: opacity, transform;
         }
         #${SIDEBAR_ID} .ai-nav-item[data-active="1"] .ai-nav-text {
           color: #1f6feb;
@@ -182,14 +85,9 @@
         #${SIDEBAR_ID}:not(:hover) {
           width: 40px;
           padding: 0;
-          transform: translate3d(0, -50%, 0);
         }
         #${SIDEBAR_ID}:not(:hover) .ai-nav-item {
           padding: 6px 4px;
-          opacity: 0.65;
-        }
-        #${SIDEBAR_ID}:not(:hover) .ai-nav-item[data-active="1"] {
-          opacity: 1;
         }
         #${SIDEBAR_ID}:not(:hover) .ai-nav-bar {
           opacity: 1;
@@ -197,11 +95,13 @@
         }
         #${SIDEBAR_ID}:not(:hover) .ai-nav-text {
           opacity: 0;
-          transform: translate3d(6px, 0, 0);
+          max-height: 0;
+          max-width: 0;
         }
         #${SIDEBAR_ID}:hover .ai-nav-text {
           opacity: 1;
-          transform: translate3d(0, 0, 0);
+          max-height: 20px;
+          max-width: 100%;
         }
         #${SIDEBAR_ID}:hover .ai-nav-bar {
           display: none;
@@ -236,7 +136,7 @@
     if (role !== "user") return null;
 
     let text = (roleNode?.innerText || "").replace(/\s+/g, " ").trim();
-    if (!text) text = "发送图片";
+    if (!text) text = "(empty)";
     if (text.length > 120) text = text.slice(0, 120) + "...";
 
     return `${idx + 1}. ${text}`;
@@ -292,17 +192,18 @@
         userArticles.forEach(a => a.removeAttribute("data-ai-nav-active"));
         article.setAttribute("data-ai-nav-active", "1");
 
-        window.__aiNavActiveIndex = i;
-        if (window.__aiNavApplyActive) window.__aiNavApplyActive(i);
-        lockActiveIndex(i);
-        window.__aiNavSnapTarget = { el: article };
-        const target = getScrollTarget(article);
-        scrollToContainer(target.scroller, target.top, "smooth");
+        // Freeze auto highlight briefly to avoid flicker after manual selection.
+        article.scrollIntoView({ behavior: "smooth", block: "start" });
+        clearTimeout(window.__aiNavPostScrollT);
+        window.__aiNavPostScrollT = setTimeout(() => {
+          if (window.__aiNavScrollHandler) window.__aiNavScrollHandler();
+        }, 360);
       });
 
       list.appendChild(item);
     }
 
+    // ??????????????????????????????????????????
     setupActiveHighlight(userArticles, list);
   }
 
@@ -350,19 +251,8 @@
     if (!window.__aiNavScrollHandler) {
       window.__aiNavScrollHandler = () => {
         if (window.__aiNavRAF) return;
-        if (Number.isInteger(window.__aiNavLockedIndex)) resetLockIdleTimer();
         window.__aiNavRAF = requestAnimationFrame(() => {
           window.__aiNavRAF = null;
-          const lockedIndex = Number.isInteger(window.__aiNavLockedIndex) ? window.__aiNavLockedIndex : -1;
-          if (lockedIndex !== -1) {
-            if (Date.now() >= (window.__aiNavLockExpiresAt || 0)) {
-              releaseLockedIndex();
-            } else {
-              window.__aiNavActiveIndex = lockedIndex;
-              applyActive(lockedIndex);
-              return;
-            }
-          }
           const idx = computeActive();
           if (idx === -1 || idx === window.__aiNavActiveIndex) return;
           window.__aiNavActiveIndex = idx;
