@@ -193,7 +193,7 @@
         article.setAttribute("data-ai-nav-active", "1");
 
         // Freeze auto highlight briefly to avoid flicker after manual selection.
-        article.scrollIntoView({ behavior: "smooth", block: "start" });
+        article.scrollIntoView({ behavior: "auto", block: "start" });
         clearTimeout(window.__aiNavPostScrollT);
         window.__aiNavPostScrollT = setTimeout(() => {
           if (window.__aiNavScrollHandler) window.__aiNavScrollHandler();
