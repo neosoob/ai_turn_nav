@@ -30,6 +30,16 @@
           backdrop-filter: none;
           box-shadow: none;
         }
+
+        #${SIDEBAR_ID}::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        #${SIDEBAR_ID}::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, 0.15);
+          border-radius: 999px;
+        }
+
         #${SIDEBAR_ID}:hover {
           background: rgba(250, 250, 250, 0.92);
           border: 1px solid rgba(0, 0, 0, 0.08);
@@ -40,6 +50,7 @@
           width: fit-content;
           max-width: 320px;
         }
+
         #${SIDEBAR_ID} .ai-nav-item {
           padding: 6px 8px;
           border-radius: 8px;
@@ -50,10 +61,13 @@
           display: flex;
           align-items: center;
           gap: 8px;
+          user-select: none;
         }
+
         #${SIDEBAR_ID} .ai-nav-item[data-active="1"] {
           opacity: 1;
         }
+
         #${SIDEBAR_ID} .ai-nav-text {
           display: block;
           max-height: 20px;
@@ -64,49 +78,53 @@
           max-width: 100%;
           flex: 1;
         }
+
         #${SIDEBAR_ID} .ai-nav-item[data-active="1"] .ai-nav-text {
           color: #1f6feb;
           font-weight: 600;
         }
+
         #${SIDEBAR_ID} .ai-nav-item[data-active="1"] .ai-nav-bar {
           background: #1f6feb;
         }
+
         #${SIDEBAR_ID} .ai-nav-bar {
           display: block;
           height: 6px;
           width: 26px;
           border-radius: 999px;
           background: #c7cbd1;
+          flex: 0 0 auto;
         }
+
         #${SIDEBAR_ID}:not(:hover) {
           width: 40px;
           padding: 0;
         }
+
         #${SIDEBAR_ID}:not(:hover) .ai-nav-item {
           padding: 6px 4px;
         }
+
         #${SIDEBAR_ID}:not(:hover) .ai-nav-bar {
           opacity: 1;
           margin: 2px auto;
         }
+
         #${SIDEBAR_ID}:not(:hover) .ai-nav-text {
           opacity: 0;
           max-height: 0;
           max-width: 0;
         }
+
         #${SIDEBAR_ID}:hover .ai-nav-text {
           opacity: 1;
           max-height: 20px;
           max-width: 100%;
         }
+
         #${SIDEBAR_ID}:hover .ai-nav-bar {
           display: none;
-        }
-
-        .ai-nav-target[data-ai-nav-active="1"] {
-          outline: 2px solid rgba(31, 111, 235, 0.35);
-          outline-offset: 4px;
-          border-radius: 16px;
         }
       `;
       document.head.appendChild(style);
@@ -119,28 +137,50 @@
     return bar;
   }
 
+  function isVisible(el) {
+    if (!el || !el.isConnected) return false;
+    const rect = el.getBoundingClientRect();
+    const style = window.getComputedStyle(el);
+    return (
+      style.display !== "none" &&
+      style.visibility !== "hidden" &&
+      rect.width > 0 &&
+      rect.height > 0
+    );
+  }
+
   function getUserMessageNodes() {
-    const selectors = [
-      ".user-message-bubble-color",
-      "[class*='user-message-bubble-color']",
-      ".whitespace-pre-wrap"
-    ];
+    const raw = Array.from(
+      document.querySelectorAll(
+        ".user-message-bubble-color, [class*='user-message-bubble-color']"
+      )
+    );
 
-    for (const sel of selectors) {
-      const nodes = Array.from(document.querySelectorAll(sel))
-        .map(el => {
-          // 如果选到的是内部文本节点，回退到外层 bubble
-          const bubble = el.closest(".user-message-bubble-color, [class*='user-message-bubble-color']");
-          return bubble || el;
-        })
-        .filter(Boolean);
+    const uniq = Array.from(
+      new Set(
+        raw
+          .map(
+            (el) =>
+              el.closest(
+                ".user-message-bubble-color, [class*='user-message-bubble-color']"
+              ) || el
+          )
+          .filter(Boolean)
+      )
+    );
 
-      // 去重
-      const uniq = Array.from(new Set(nodes));
-      if (uniq.length) return uniq;
-    }
+    return uniq.filter((el) => {
+      if (!isVisible(el)) return false;
+      if (el.closest(`#${SIDEBAR_ID}`)) return false;
 
-    return [];
+      const text = (el.innerText || "").replace(/\s+/g, " ").trim();
+      if (!text) return false;
+
+      const style = window.getComputedStyle(el);
+      if (style.position === "fixed") return false;
+
+      return true;
+    });
   }
 
   function buildTitle(node, idx) {
@@ -148,6 +188,73 @@
     if (!text) text = "(empty)";
     if (text.length > 120) text = text.slice(0, 120) + "...";
     return `${idx + 1}. ${text}`;
+  }
+
+  function setupActiveHighlight(userNodes, listEl) {
+    window.__aiNavItems = userNodes;
+    window.__aiNavListEl = listEl;
+
+    const applyActive = (idx) => {
+      Array.from(listEl.children).forEach((c, i) => {
+        if (i === idx) c.setAttribute("data-active", "1");
+        else c.removeAttribute("data-active");
+      });
+    };
+
+    const computeActive = () => {
+      const items = window.__aiNavItems || [];
+      if (!items.length) return -1;
+
+      const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+      const targetY = vh * 0.3;
+      let bestIndex = -1;
+      let bestDist = Infinity;
+
+      for (let i = 0; i < items.length; i++) {
+        const rect = items[i].getBoundingClientRect();
+        let dist = 0;
+
+        if (targetY < rect.top) {
+          dist = rect.top - targetY;
+        } else if (targetY > rect.bottom) {
+          dist = targetY - rect.bottom;
+        }
+
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIndex = i;
+        }
+      }
+
+      return bestIndex;
+    };
+
+    if (!window.__aiNavScrollHandler) {
+      window.__aiNavScrollHandler = () => {
+        if (window.__aiNavRAF) return;
+        window.__aiNavRAF = requestAnimationFrame(() => {
+          window.__aiNavRAF = null;
+          const idx = computeActive();
+          if (idx === -1 || idx === window.__aiNavActiveIndex) return;
+          window.__aiNavActiveIndex = idx;
+          applyActive(idx);
+        });
+      };
+
+      window.addEventListener("scroll", window.__aiNavScrollHandler, { passive: true });
+      window.addEventListener("resize", window.__aiNavScrollHandler);
+      document.addEventListener("scroll", window.__aiNavScrollHandler, {
+        passive: true,
+        capture: true,
+      });
+    }
+
+    const currentIndex = Number.isInteger(window.__aiNavActiveIndex)
+      ? window.__aiNavActiveIndex
+      : -1;
+
+    if (currentIndex !== -1) applyActive(currentIndex);
+    window.__aiNavScrollHandler();
   }
 
   function render() {
@@ -175,8 +282,6 @@
     list.innerHTML = "";
 
     userNodes.forEach((node, i) => {
-      node.classList.add("ai-nav-target");
-
       const item = document.createElement("div");
       item.className = "ai-nav-item";
       item.dataset.title = titles[i];
@@ -193,8 +298,12 @@
       item.appendChild(barEl);
 
       item.addEventListener("click", () => {
-        userNodes.forEach(n => n.removeAttribute("data-ai-nav-active"));
-        node.setAttribute("data-ai-nav-active", "1");
+        window.__aiNavActiveIndex = i;
+        Array.from(list.children).forEach((c, idx) => {
+          if (idx === i) c.setAttribute("data-active", "1");
+          else c.removeAttribute("data-active");
+        });
+
         node.scrollIntoView({ behavior: "auto", block: "center" });
 
         clearTimeout(window.__aiNavPostScrollT);
@@ -209,79 +318,21 @@
     setupActiveHighlight(userNodes, list);
   }
 
-  function setupActiveHighlight(userNodes, listEl) {
-    window.__aiNavItems = userNodes;
-    window.__aiNavListEl = listEl;
-
-    const applyActive = (idx) => {
-      Array.from(listEl.children).forEach((c, i) => {
-        if (i === idx) c.setAttribute("data-active", "1");
-        else c.removeAttribute("data-active");
-      });
-
-      userNodes.forEach((n, i) => {
-        if (i === idx) n.setAttribute("data-ai-nav-active", "1");
-        else n.removeAttribute("data-ai-nav-active");
-      });
-    };
-
-    const computeActive = () => {
-      const items = window.__aiNavItems || [];
-      if (!items.length) return -1;
-
-      const vh = window.innerHeight || document.documentElement.clientHeight || 0;
-      const targetY = vh * 0.3;
-      let bestIndex = -1;
-      let bestDist = Infinity;
-
-      for (let i = 0; i < items.length; i++) {
-        const rect = items[i].getBoundingClientRect();
-        let dist = 0;
-
-        if (targetY < rect.top) dist = rect.top - targetY;
-        else if (targetY > rect.bottom) dist = targetY - rect.bottom;
-
-        if (dist < bestDist) {
-          bestDist = dist;
-          bestIndex = i;
-        }
-      }
-
-      return bestIndex;
-    };
-
-    if (!window.__aiNavScrollHandler) {
-      window.__aiNavScrollHandler = () => {
-        if (window.__aiNavRAF) return;
-        window.__aiNavRAF = requestAnimationFrame(() => {
-          window.__aiNavRAF = null;
-          const idx = computeActive();
-          if (idx === -1 || idx === window.__aiNavActiveIndex) return;
-          window.__aiNavActiveIndex = idx;
-          applyActive(idx);
-        });
-      };
-
-      window.addEventListener("scroll", window.__aiNavScrollHandler, { passive: true });
-      window.addEventListener("resize", window.__aiNavScrollHandler);
-      document.addEventListener("scroll", window.__aiNavScrollHandler, { passive: true, capture: true });
-    }
-
-    const currentIndex = Number.isInteger(window.__aiNavActiveIndex)
-      ? window.__aiNavActiveIndex
-      : -1;
-
-    if (currentIndex !== -1) applyActive(currentIndex);
-    window.__aiNavScrollHandler();
-  }
-
   function observe() {
     if (window.__aiNavObserver) return;
+
     const mo = new MutationObserver(() => {
       clearTimeout(observe._t);
       observe._t = setTimeout(render, 250);
     });
-    mo.observe(document.body, { subtree: true, childList: true });
+
+    mo.observe(document.body, {
+      subtree: true,
+      childList: true,
+      characterData: false,
+      attributes: false,
+    });
+
     window.__aiNavObserver = mo;
   }
 
