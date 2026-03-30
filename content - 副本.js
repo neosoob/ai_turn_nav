@@ -52,7 +52,11 @@
           gap: 8px;
         }
         #${SIDEBAR_ID} .ai-nav-item[data-active="1"] {
+          background: transparent;
           opacity: 1;
+        }
+        #${SIDEBAR_ID} .ai-nav-item:not([data-active="1"]):hover {
+          background: transparent;
         }
         #${SIDEBAR_ID} .ai-nav-text {
           display: block;
@@ -102,51 +106,39 @@
         #${SIDEBAR_ID}:hover .ai-nav-bar {
           display: none;
         }
-
-        .ai-nav-target[data-ai-nav-active="1"] {
-          outline: 2px solid rgba(31, 111, 235, 0.35);
-          outline-offset: 4px;
-          border-radius: 16px;
-        }
       `;
       document.head.appendChild(style);
     }
 
     bar = document.createElement("div");
     bar.id = SIDEBAR_ID;
-    bar.innerHTML = `<div id="${LIST_ID}"></div>`;
+    bar.innerHTML = `
+      <div id="${LIST_ID}"></div>
+    `;
     document.body.appendChild(bar);
     return bar;
   }
 
-  function getUserMessageNodes() {
-    const selectors = [
-      ".user-message-bubble-color",
-      "[class*='user-message-bubble-color']",
-      ".whitespace-pre-wrap"
-    ];
+  function getTurnArticles() {
+    // 你给的 DOM 对应这个，非常稳
+    const a = Array.from(document.querySelectorAll('article[data-testid^="conversation-turn-"]'));
+    if (a.length) return a;
 
-    for (const sel of selectors) {
-      const nodes = Array.from(document.querySelectorAll(sel))
-        .map(el => {
-          // 如果选到的是内部文本节点，回退到外层 bubble
-          const bubble = el.closest(".user-message-bubble-color, [class*='user-message-bubble-color']");
-          return bubble || el;
-        })
-        .filter(Boolean);
-
-      // 去重
-      const uniq = Array.from(new Set(nodes));
-      if (uniq.length) return uniq;
-    }
-
-    return [];
+    // 兜底
+    return Array.from(document.querySelectorAll("article[data-turn-id]"));
   }
 
-  function buildTitle(node, idx) {
-    let text = (node.innerText || "").replace(/\s+/g, " ").trim();
+  function buildTitle(article, idx) {
+    const roleNode = article.querySelector("[data-message-author-role]");
+    const role = roleNode?.getAttribute("data-message-author-role") || "msg";
+
+    // 只用 user 做导航：你也可以改成 user+assistant
+    if (role !== "user") return null;
+
+    let text = (roleNode?.innerText || "").replace(/\s+/g, " ").trim();
     if (!text) text = "(empty)";
     if (text.length > 120) text = text.slice(0, 120) + "...";
+
     return `${idx + 1}. ${text}`;
   }
 
@@ -155,36 +147,40 @@
     const list = document.getElementById(LIST_ID);
     if (!list) return;
 
-    const activeIndex = Number.isInteger(window.__aiNavActiveIndex)
-      ? window.__aiNavActiveIndex
-      : -1;
+    const activeIndex = Number.isInteger(window.__aiNavActiveIndex) ? window.__aiNavActiveIndex : -1;
 
-    const userNodes = getUserMessageNodes();
-    const titles = userNodes.map((node, idx) => buildTitle(node, idx));
+    const articles = getTurnArticles();
+    const titles = [];
+    const userArticles = [];
+
+    for (let i = 0; i < articles.length; i++) {
+      const title = buildTitle(articles[i], userArticles.length);
+      if (!title) continue;
+      titles.push(title);
+      userArticles.push(articles[i]);
+    }
 
     const existingItems = Array.from(list.children);
-    const shouldRebuild =
-      existingItems.length !== titles.length ||
-      existingItems.some((el, idx) => el.dataset.title !== titles[idx]);
-
+    const shouldRebuild = existingItems.length !== titles.length || existingItems.some((el, idx) => el.dataset.title !== titles[idx]);
     if (!shouldRebuild) {
-      setupActiveHighlight(userNodes, list);
+      setupActiveHighlight(userArticles, list);
       return;
     }
 
     list.innerHTML = "";
 
-    userNodes.forEach((node, i) => {
-      node.classList.add("ai-nav-target");
+    for (let i = 0; i < titles.length; i++) {
+      const title = titles[i];
+      const article = userArticles[i];
 
       const item = document.createElement("div");
       item.className = "ai-nav-item";
-      item.dataset.title = titles[i];
+      item.dataset.title = title;
       if (i === activeIndex) item.setAttribute("data-active", "1");
 
       const text = document.createElement("span");
       text.className = "ai-nav-text";
-      text.textContent = titles[i];
+      text.textContent = title;
 
       const barEl = document.createElement("span");
       barEl.className = "ai-nav-bar";
@@ -193,37 +189,38 @@
       item.appendChild(barEl);
 
       item.addEventListener("click", () => {
-        userNodes.forEach(n => n.removeAttribute("data-ai-nav-active"));
-        node.setAttribute("data-ai-nav-active", "1");
-        node.scrollIntoView({ behavior: "auto", block: "center" });
+        userArticles.forEach(a => a.removeAttribute("data-ai-nav-active"));
+        article.setAttribute("data-ai-nav-active", "1");
 
+        // Freeze auto highlight briefly to avoid flicker after manual selection.
+        article.scrollIntoView({ behavior: "auto", block: "start" });
         clearTimeout(window.__aiNavPostScrollT);
         window.__aiNavPostScrollT = setTimeout(() => {
           if (window.__aiNavScrollHandler) window.__aiNavScrollHandler();
-        }, 200);
+        }, 360);
       });
 
       list.appendChild(item);
-    });
+    }
 
-    setupActiveHighlight(userNodes, list);
+    // ??????????????????????????????????????????
+    setupActiveHighlight(userArticles, list);
   }
 
-  function setupActiveHighlight(userNodes, listEl) {
-    window.__aiNavItems = userNodes;
+  function setupActiveHighlight(userArticles, listEl) {
+    window.__aiNavItems = userArticles;
     window.__aiNavListEl = listEl;
 
     const applyActive = (idx) => {
       Array.from(listEl.children).forEach((c, i) => {
-        if (i === idx) c.setAttribute("data-active", "1");
-        else c.removeAttribute("data-active");
-      });
-
-      userNodes.forEach((n, i) => {
-        if (i === idx) n.setAttribute("data-ai-nav-active", "1");
-        else n.removeAttribute("data-ai-nav-active");
+        if (i === idx) {
+          c.setAttribute("data-active", "1");
+        } else {
+          c.removeAttribute("data-active");
+        }
       });
     };
+    window.__aiNavApplyActive = applyActive;
 
     const computeActive = () => {
       const items = window.__aiNavItems || [];
@@ -232,15 +229,16 @@
       const vh = window.innerHeight || document.documentElement.clientHeight || 0;
       const targetY = vh * 0.3;
       let bestIndex = -1;
-      let bestDist = Infinity;
+      let bestDist = Number.POSITIVE_INFINITY;
 
       for (let i = 0; i < items.length; i++) {
         const rect = items[i].getBoundingClientRect();
         let dist = 0;
-
-        if (targetY < rect.top) dist = rect.top - targetY;
-        else if (targetY > rect.bottom) dist = targetY - rect.bottom;
-
+        if (targetY < rect.top) {
+          dist = rect.top - targetY;
+        } else if (targetY > rect.bottom) {
+          dist = targetY - rect.bottom;
+        }
         if (dist < bestDist) {
           bestDist = dist;
           bestIndex = i;
@@ -261,28 +259,22 @@
           applyActive(idx);
         });
       };
-
       window.addEventListener("scroll", window.__aiNavScrollHandler, { passive: true });
       window.addEventListener("resize", window.__aiNavScrollHandler);
       document.addEventListener("scroll", window.__aiNavScrollHandler, { passive: true, capture: true });
     }
 
-    const currentIndex = Number.isInteger(window.__aiNavActiveIndex)
-      ? window.__aiNavActiveIndex
-      : -1;
-
+    const currentIndex = Number.isInteger(window.__aiNavActiveIndex) ? window.__aiNavActiveIndex : -1;
     if (currentIndex !== -1) applyActive(currentIndex);
     window.__aiNavScrollHandler();
   }
 
   function observe() {
-    if (window.__aiNavObserver) return;
     const mo = new MutationObserver(() => {
       clearTimeout(observe._t);
       observe._t = setTimeout(render, 250);
     });
     mo.observe(document.body, { subtree: true, childList: true });
-    window.__aiNavObserver = mo;
   }
 
   render();
